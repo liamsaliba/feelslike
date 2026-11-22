@@ -152,7 +152,6 @@ a{color:var(--accent)}
     <div class="hd"><h2>Feels like</h2><span class="mut">BOM apparent temperature</span></div>
     <p class="hint">How hot the air would feel to you in each situation. Above ~32° feels hot; above ~38° take it easy.</p>
     <div class="row"><span class="lab">Body</span><div class="seg" id="bodySeg" role="group" aria-label="Body type"></div></div>
-    <div class="row" style="margin-top:6px"><span class="lab">Run</span><div class="seg" id="runSeg" role="group" aria-label="Running intensity (km/h)"></div></div>
     <div class="grid2" id="atGrid"></div>
     <div class="conds" id="conds"></div>
   </section>
@@ -183,6 +182,7 @@ a{color:var(--accent)}
     <p class="hint">Low: play as normal · Moderate: drink more, add rest breaks · High: cool down actively, cut it short · Extreme: stop.</p>
     <div class="row"><select id="sportSel" aria-label="Sport"></select>
       <div class="seg" id="expoSeg" role="group" aria-label="Exposure"><button data-id="sun">Sun</button><button data-id="shade">Shade</button></div></div>
+    <div class="row" style="margin-top:6px"><span class="lab">Effort</span><div class="seg" id="intSeg" role="group" aria-label="Intensity"></div></div>
     <div id="sportBadge"></div>
     <div class="strip" id="sportStrip"></div><div class="hrs" id="sportHrs"></div>
     <p class="foot" id="sportFoot"></p>
@@ -198,11 +198,11 @@ a{color:var(--accent)}
   <details class="card">
     <summary>How these are calculated</summary>
     <p><b>Feels like.</b> Shade, walking is the BOM formula <code>AT = Ta + 0.33e − 0.70ws − 4.00</code> (e = vapour pressure in hPa, ws = 10 m wind in m/s). In sun adds the radiation term <code>0.70·Q/(ws+10)</code> from BOM's radiation version, with Q = absorbed solar power per m² of skin (0.7 absorptivity, standing-person projected-area factor, half the sky diffuse). Ground reflection and hot-surface heat are ignored, so real sun can feel hotter still.</p>
-    <p><b>Standing, running and body type are my additions, not BOM's.</b> They shift the walking value by the change in metabolic heat per m² of skin: 0.06 K per W/m² below walking (standing ≈ 70 vs 135 W/m²), tapering logarithmically above it so running stays sensible. Running uses ~1 MET per km/h (Easy 9, Steady 12, Hard 15 km/h ≈ 400–640 W/m²) and adds running speed to the wind, which cools and slightly reduces the sun term. Body type scales metabolic heat by mass ÷ surface area (DuBois) relative to a 70 kg, 1.75 m adult. Indicative only: for running, the sports heat risk below is the better guide to actual danger.</p>
+    <p><b>Standing and body type are my additions, not BOM's.</b> Standing is the walking value minus 0.06 K per W/m² of metabolic heat (70 vs 135 W/m²). Body type scales metabolic heat per m² of skin by mass ÷ surface area (DuBois), relative to a 70 kg, 1.75 m adult. Treat as indicative. For running and other exercise, use the sports heat risk.</p>
     <p><b>Hourly.</b> Open-Meteo model data: past days are model analyses (close to, but not, station observations), later days are forecasts. Feels-like lines use the walking values for the selected body type.</p>
     <p><b>UV index.</b> Open-Meteo hourly forecast (clear-sky-adjusted model UV). Categories follow the WHO scale; the protection window is the hours with UV ≥ 3, the SunSmart / BOM threshold.</p>
     <p><b>Excess Heat Factor.</b> <code>EHF = max(0, EHIsig) × max(1, EHIaccl)</code> (Nairn &amp; Fawcett) using daily mean temperature (max + next-day min)/2: EHIsig is the 3-day mean minus the local 95th percentile (T95), EHIaccl the 3-day mean minus the prior 30-day mean. T95 and EHF85 come from ERA5 reanalysis for 1971–2000 at your location, not a station record, so they differ a little from BOM's. Severe ≥ EHF85, extreme ≥ 3×EHF85. Recent days are model analyses, later days forecasts.</p>
-    <p><b>Sports heat risk.</b> The Sports Heat Tool is Sports Medicine Australia / University of Sydney's (<a href="https://sma-heat-policy.sydney.edu.au/" target="_blank" rel="noopener">sma-heat-policy.sydney.edu.au</a>), not BOM's, and runs the full ISO 7933 heat-strain model. This page is a simplified steady-state heat balance using the same published sport inputs (clothing, activity, air speed, duration) and risk thresholds (sweat 850 mL/h; core 39.5° or 40°, 38.5° for low-intensity sports). It tracks the official tool in direction but not exactly: use the official tool for decisions.</p>
+    <p><b>Sports heat risk.</b> The Sports Heat Tool is Sports Medicine Australia / University of Sydney's (<a href="https://sma-heat-policy.sydney.edu.au/" target="_blank" rel="noopener">sma-heat-policy.sydney.edu.au</a>), not BOM's, and runs the full ISO 7933 heat-strain model. This page is a simplified steady-state heat balance using the same published sport inputs (clothing, activity, air speed, duration; Medium effort = the published activity level, Low ×0.7, High ×1.25) and risk thresholds (sweat 850 mL/h; core 39.5° or 40°, 38.5° for low-intensity sports). It tracks the official tool in direction but not exactly: use the official tool for decisions.</p>
     <p><b>Thermal Work Limit.</b> Brake &amp; Bates' limiting metabolic rate: the highest work rate (W/m²) an acclimatised, hydrated, self-paced worker can sustain with core ≤ 38.2° and sweat ≤ 1.2 kg/h, standard 0.35 clo wet clothing. The full commercial algorithm is not published, so this is my reimplementation of its heat-balance structure with a radiant load estimated from the sun. Zones: &lt;115 restricted, 115–140 buffer, 140–220 acclimatisation, &gt;220 unrestricted. Not for compliance use.</p>
     <p>Weather: model data from <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo.com</a> (CC BY 4.0), not station observations. Ground-level wind is taken as 0.75 × the 10 m wind for sport and TWL.</p>
   </details>
@@ -288,21 +288,6 @@ const radiationTerm = (Q, ws) => 0.70 * Q / (ws + 10);
 function metOffset(M) {
   return M <= AT.M_REF ? AT.K * (M - AT.M_REF) : AT.K * AT.M_REF * Math.log(M / AT.M_REF);
 }
-/* Running intensities: speed and metabolic cost (Compendium of Physical Activities, ~1 MET per km/h). */
-const RUNS = [
-  { id: 'easy',   label: 'Easy',   kmh: 9,  met: 9.0 },
-  { id: 'steady', label: 'Steady', kmh: 12, met: 11.8 },
-  { id: 'hard',   label: 'Hard',   kmh: 15, met: 14.5 }
-];
-function runFeels(env, body, run) {
-  const r = bodyRatio(body);
-  const M = run.met * 1.163 * REF_MPA * r;                         // W/m2 of skin
-  const v10 = run.kmh / 3.6 / 0.75;                                 // running speed as a 10 m-equivalent wind
-  const wsEff = Math.sqrt(env.ws * env.ws + v10 * v10);
-  const shade = atShade(env.Ta, env.RH, wsEff) + metOffset(M);
-  return { shade, sun: shade + radiationTerm(env.Q, wsEff), M };
-}
-
 function feelsLike(env, body) {
   const base = atShade(env.Ta, env.RH, env.ws);
   const r = bodyRatio(body);
@@ -382,10 +367,16 @@ const SUN_MRT_RISE = 4.4; // W/m2 of absorbed solar per K of mean-radiant-temper
 const REF_BSA = 1.94, REF_MASS = 75;
 
 /* Steady-state heat balance in the spirit of ISO 7933 (PHS), classified with the SMA thresholds. */
-function sportRisk(env, sport, sun) {
+/* Intensity scales the sport's typical metabolic rate (Medium = the SMA table value). */
+const INTENSITIES = [
+  { id: 'low', label: 'Low', k: 0.7 },
+  { id: 'med', label: 'Medium', k: 1.0 },
+  { id: 'high', label: 'High', k: 1.25 }
+];
+function sportRisk(env, sport, sun, k = 1) {
   const Ta = env.Ta, pa = psatKPa(Ta) * env.RH / 100;
   const Tr = sun ? Ta + env.Q / SUN_MRT_RISE : Ta;
-  const M = Math.min(sport.met, 7.5) * MET_W;
+  const M = Math.min(sport.met, 7.5) * MET_W * k;
   const Vg = 0.75 * env.ws;                                   // 10 m wind -> ground level (assumed factor)
   const V = sport.v > 3 ? sport.v : Math.max(sport.v, Vg);
   const active = M > 150;
@@ -510,7 +501,7 @@ const state = {
   body: store.get('body', 'avg'),
   sport: store.get('sport', 'Long-distance running'),
   expo: store.get('expo', 'sun'),
-  run: store.get('run', 'easy'),
+  inten: store.get('inten', 'med'),
   favs: store.get('favs', []),
   day: 0, hover: null,
   wx: null, clim: null, climErr: null, loadedAt: 0
@@ -659,15 +650,12 @@ function render() {
 }
 function renderAT() {
   const w = state.wx, n = w.now, body = BODIES.find(b => b.id === state.body);
-  const run = RUNS.find(r => r.id === state.run) || RUNS[0];
-  const f = feelsLike(n, body), rf = runFeels(n, body, run), night = n.elev <= 0 ? 'night' : '';
+  const f = feelsLike(n, body), night = n.elev <= 0 ? 'night' : '';
   $('#atGrid').innerHTML =
     tile('Shade', 'standing', f.shadeStand, atBand(f.shadeStand)) +
     tile('Sun', 'standing', f.sunStand, atBand(f.sunStand), night) +
     tile('Shade', 'walking', f.shadeWalk, atBand(f.shadeWalk)) +
-    tile('Sun', 'walking', f.sunWalk, atBand(f.sunWalk), night) +
-    tile('Shade', 'running', rf.shade, atBand(rf.shade)) +
-    tile('Sun', 'running', rf.sun, atBand(rf.sun), night);
+    tile('Sun', 'walking', f.sunWalk, atBand(f.sunWalk), night);
   $('#conds').innerHTML =
     `<span>Air <b>${f1(n.Ta)}°</b></span><span>Humidity <b>${f0(n.RH)}%</b></span>` +
     `<span>Wind <b>${f0(n.ws * 3.6)} km/h</b></span>` +
@@ -779,11 +767,12 @@ function envOf(h) { return { Ta: h.Ta, RH: h.RH, ws: h.ws, P: h.P, Q: h.Q }; }
 function renderSport() {
   const w = state.wx, n = w.now, sun = state.expo === 'sun';
   const sp = SPORTS.find(s => s.name === state.sport) || SPORTS[0];
-  const r = sportRisk(n, sp, sun), cls = ['lv2', 'lv3', 'lv4', 'lv5'];
+  const it = INTENSITIES.find(x => x.id === state.inten) || INTENSITIES[1];
+  const r = sportRisk(n, sp, sun, it.k), cls = ['lv2', 'lv3', 'lv4', 'lv5'];
   $('#sportBadge').innerHTML = `<div class="badge ${cls[r.lvl]}"><div class="big">${r.name}</div>` +
-    `<div class="sub">${sp.name}, ${sp.min} min · sweat ≈ ${f0(Math.round(r.sweatMlH / 50) * 50)} mL/h · core ≈ ${f1(r.core)}° ${sun ? 'in sun' : 'in shade'}</div></div>`;
+    `<div class="sub">${sp.name}, ${it.label.toLowerCase()} intensity, ${sp.min} min · sweat ≈ ${f0(Math.round(r.sweatMlH / 50) * 50)} mL/h · core ≈ ${f1(r.core)}° ${sun ? 'in sun' : 'in shade'}</div></div>`;
   const i0 = Math.max(0, w.hour0), H = w.hours.slice(i0, i0 + 24);
-  const rs = H.map(h => sportRisk(envOf(h), sp, sun));
+  const rs = H.map(h => sportRisk(envOf(h), sp, sun, it.k));
   $('#sportStrip').innerHTML = rs.map((x, i) => `<div class="cell ${cls[x.lvl]} ${i === 0 ? 'now' : ''}" title="${H[i].t.slice(11, 16)}: ${x.name}"></div>`).join('');
   $('#sportHrs').innerHTML = H.map((h, i) => `<span>${i % 4 === 0 ? h.t.slice(11, 13) : ''}</span>`).join('');
   const peak = Math.max(...rs.map(x => x.lvl)), first = rs.findIndex(x => x.lvl === peak), last = rs.length - 1 - [...rs].reverse().findIndex(x => x.lvl === peak);
@@ -825,10 +814,10 @@ function buildControls() {
   bs.innerHTML = BODIES.map(b => `<button data-id="${b.id}" title="${b.note}" aria-pressed="${b.id === state.body}">${b.label}</button>`).join('');
   bs.onclick = e => { const b = e.target.closest('button'); if (!b) return; state.body = b.dataset.id; store.set('body', state.body);
     bs.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x.dataset.id === state.body)); if (state.wx) { renderAT(); renderChart(); } };
-  const rs = $('#runSeg');
-  rs.innerHTML = RUNS.map(r => `<button data-id="${r.id}" aria-pressed="${r.id === state.run}" title="${r.kmh} km/h">${r.label} <small>${r.kmh}</small></button>`).join('');
-  rs.onclick = e => { const b = e.target.closest('button'); if (!b) return; state.run = b.dataset.id; store.set('run', state.run);
-    rs.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x.dataset.id === state.run)); if (state.wx) renderAT(); };
+  const is = $('#intSeg');
+  is.innerHTML = INTENSITIES.map(x => `<button data-id="${x.id}" aria-pressed="${x.id === state.inten}">${x.label}</button>`).join('');
+  is.onclick = e => { const b = e.target.closest('button'); if (!b) return; state.inten = b.dataset.id; store.set('inten', state.inten);
+    is.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x.dataset.id === state.inten)); if (state.wx) renderSport(); };
   $('#daySeg').onclick = e => { const b = e.target.closest('button'); if (!b) return; state.day = +b.dataset.o; renderChart(); };
   $('#btnFav').onclick = toggleFav;
   $('#favs').onclick = e => {
