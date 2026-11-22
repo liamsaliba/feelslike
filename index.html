@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Feels like &amp; heat indices</title>
+<style>
+:root{
+  --bg:#f3f5f8; --card:#ffffff; --ink:#18202a; --mut:#5d6877; --line:#e2e7ee; --accent:#2457d6;
+  --l0:#4a7fc1; --l1:#2f9e9a; --l2:#43a05f; --l3:#d3a017; --l4:#e5782a; --l5:#d6423f; --l6:#8d2c6e; --lN:#8a93a0;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark){
+  :root{ --bg:#0f1318; --card:#181e26; --ink:#e8edf3; --mut:#97a2b1; --line:#262e39; --accent:#7ea2ff;
+    --l0:#6c9be0; --l1:#46bdb8; --l2:#5fc17c; --l3:#e3b93a; --l4:#f09444; --l5:#ee6461; --l6:#c35c9f; --lN:#6f7a89; }
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  font-variant-numeric:tabular-nums}
+.app{max-width:680px;margin:0 auto;padding:10px 12px 28px}
+button,select,input{font:inherit;color:inherit}
+.mut{color:var(--mut)}
+small{font-size:.8em}
+
+/* header */
+.top{display:flex;align-items:center;gap:8px;padding:6px 2px}
+.where{flex:1;min-width:0}
+.where b{display:block;font-size:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.where span{font-size:12px;color:var(--mut)}
+.ibtn{border:1px solid var(--line);background:var(--card);border-radius:10px;width:38px;height:38px;cursor:pointer;font-size:17px;line-height:1}
+.ibtn:active{transform:scale(.96)}
+.search{position:relative;margin:2px 0 6px}
+.search input{width:100%;padding:9px 12px;border-radius:10px;border:1px solid var(--line);background:var(--card)}
+.search ul{position:absolute;z-index:5;left:0;right:0;margin:4px 0 0;padding:4px;list-style:none;background:var(--card);
+  border:1px solid var(--line);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.18)}
+.search li{padding:8px 10px;border-radius:8px;cursor:pointer}
+.search li:hover,.search li:focus{background:var(--bg)}
+.msg{margin:6px 0;padding:8px 12px;border-radius:10px;background:color-mix(in srgb,var(--l4) 16%,var(--card));
+  border:1px solid color-mix(in srgb,var(--l4) 45%,var(--line));font-size:13px}
+
+/* cards */
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px 14px;margin:10px 0}
+.hd{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:8px}
+.hd h2{margin:0;font-size:12px;letter-spacing:.07em;text-transform:uppercase;color:var(--mut);font-weight:650}
+.hd .mut{font-size:12px;text-align:right}
+
+/* segmented */
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;max-width:100%}
+.seg button{border:0;background:transparent;padding:6px 11px;cursor:pointer;font-size:13px;border-right:1px solid var(--line);white-space:nowrap}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed=true]{background:var(--accent);color:#fff}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.row select{flex:1;min-width:0;padding:6px 8px;border-radius:10px;border:1px solid var(--line);background:var(--card)}
+
+/* level colours */
+.lv0{--c:var(--l0)}.lv1{--c:var(--l1)}.lv2{--c:var(--l2)}.lv3{--c:var(--l3)}.lv4{--c:var(--l4)}.lv5{--c:var(--l5)}.lv6{--c:var(--l6)}.lvN{--c:var(--lN)}
+.tile,.chip,.badge,.cell{
+  background:color-mix(in srgb,var(--c) 17%,var(--card));
+  border:1px solid color-mix(in srgb,var(--c) 50%,var(--line));
+}
+
+/* feels-like */
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.tile{border-radius:12px;padding:8px 10px 8px;position:relative;border-left:5px solid var(--c)}
+.tile .lbl{font-size:12px;color:var(--mut)}
+.tile .lbl b{color:var(--ink);font-weight:650;margin-right:4px}
+.tile .val{font-size:32px;font-weight:700;line-height:1.1;letter-spacing:-.02em}
+.tile .band{font-size:12px;color:var(--mut)}
+.tile.night{opacity:.55}
+.conds{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:10px;font-size:12.5px;color:var(--mut)}
+.conds b{color:var(--ink);font-weight:600}
+.foot{font-size:12px;color:var(--mut);margin-top:6px}
+
+/* EHF */
+.head{font-size:15px;margin:0 0 8px}
+.head b{font-weight:700}
+.chips{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.chip{border-radius:9px;padding:5px 2px;text-align:center;line-height:1.15}
+.chip .d{display:block;font-size:10.5px;color:var(--mut)}
+.chip b{font-size:14px}
+.chip.today{outline:2px solid var(--ink);outline-offset:1px}
+.chip small{display:block;font-size:9.5px;color:var(--mut)}
+
+/* sport */
+.badge{display:flex;align-items:center;gap:10px;border-radius:12px;padding:8px 12px;margin-top:10px;border-left:5px solid var(--c)}
+.badge .big{font-size:22px;font-weight:700;letter-spacing:-.01em}
+.badge .sub{font-size:12.5px;color:var(--mut);line-height:1.3}
+.strip{display:grid;grid-template-columns:repeat(24,1fr);gap:2px;margin-top:10px}
+.cell{height:22px;border-radius:4px;border-width:0;background:var(--c)}
+.cell.now{outline:2px solid var(--ink);outline-offset:1px}
+.hrs{display:grid;grid-template-columns:repeat(24,1fr);gap:2px;font-size:9.5px;color:var(--mut);margin-top:2px;text-align:center}
+.hrs span{overflow:visible;white-space:nowrap}
+
+details.card summary{cursor:pointer;font-weight:650;font-size:13px;color:var(--mut);letter-spacing:.05em;text-transform:uppercase}
+details.card p,details.card li{font-size:13px;color:var(--mut)}
+details.card ul{padding-left:18px;margin:6px 0}
+details.card code{font-size:12px;background:var(--bg);padding:1px 5px;border-radius:5px;color:var(--ink)}
+a{color:var(--accent)}
+.spin{display:inline-block;width:12px;height:12px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;
+  animation:sp .8s linear infinite;vertical-align:-2px;margin-right:6px}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media (max-width:380px){.tile .val{font-size:28px}.hd .mut{display:none}}
+
+</style>
+</head>
+<body>
+<main class="app">
+  <header class="top">
+    <div class="where"><b id="place">Locating…</b><span id="upd"></span></div>
+    <button class="ibtn" id="btnLoc" title="Use my location" aria-label="Use my location">◎</button>
+    <button class="ibtn" id="btnRef" title="Refresh" aria-label="Refresh">↻</button>
+  </header>
+  <div class="search"><input id="q" type="search" placeholder="Search another place…" autocomplete="off" aria-label="Search place"><ul id="results" hidden></ul></div>
+  <div class="msg" id="msg" hidden></div>
+
+  <section class="card">
+    <div class="hd"><h2>Feels like</h2><span class="mut">BOM apparent temperature</span></div>
+    <div class="row"><span class="mut" style="font-size:12px">Body type</span><div class="seg" id="bodySeg" role="group" aria-label="Body type"></div></div>
+    <div class="grid2" id="atGrid"></div>
+    <div class="conds" id="conds"></div>
+    <p class="foot" id="atFoot"></p>
+  </section>
+
+  <section class="card">
+    <div class="hd"><h2>Excess Heat Factor</h2><span class="mut">multi-day heatwaves</span></div>
+    <div id="ehf"><p class="head mut"><span class="spin"></span>Loading…</p></div>
+  </section>
+
+  <section class="card">
+    <div class="hd"><h2>Sports heat risk</h2><span class="mut">vigorous activity</span></div>
+    <div class="row"><select id="sportSel" aria-label="Sport"></select>
+      <div class="seg" id="expoSeg" role="group" aria-label="Exposure"><button data-id="sun">Sun</button><button data-id="shade">Shade</button></div></div>
+    <div id="sportBadge"></div>
+    <div class="strip" id="sportStrip"></div><div class="hrs" id="sportHrs"></div>
+    <p class="foot" id="sportFoot"></p>
+  </section>
+
+  <section class="card">
+    <div class="hd"><h2>Thermal Work Limit</h2><span class="mut">sustainable work rate</span></div>
+    <div class="grid2" id="twlGrid"></div>
+    <p class="foot" id="twlFoot"></p>
+  </section>
+
+  <details class="card">
+    <summary>How these are calculated</summary>
+    <p><b>Feels like.</b> Shade, walking is the BOM formula <code>AT = Ta + 0.33e − 0.70ws − 4.00</code> (e = vapour pressure in hPa, ws = 10 m wind in m/s). In sun adds the radiation term <code>0.70·Q/(ws+10)</code> from BOM's radiation version, with Q = absorbed solar power per m² of skin (0.7 absorptivity, standing-person projected-area factor, half the sky diffuse). Ground reflection and hot-surface heat are ignored, so real sun can feel hotter still.</p>
+    <p><b>Standing and body type are my additions, not BOM's.</b> Standing is the walking value minus 0.06 K per W/m² of metabolic heat (70 vs 135 W/m²). Body type scales metabolic heat per m² of skin by mass ÷ surface area (DuBois), relative to a 70 kg, 1.75 m adult. Treat as indicative.</p>
+    <p><b>Excess Heat Factor.</b> <code>EHF = max(0, EHIsig) × max(1, EHIaccl)</code> (Nairn &amp; Fawcett) using daily mean temperature (max + next-day min)/2: EHIsig is the 3-day mean minus the local 95th percentile (T95), EHIaccl the 3-day mean minus the prior 30-day mean. T95 and EHF85 come from ERA5 reanalysis for 1971–2000 at your location, not a station record, so they differ a little from BOM's. Severe ≥ EHF85, extreme ≥ 3×EHF85. Recent days are model analyses, later days forecasts.</p>
+    <p><b>Sports heat risk.</b> The Sports Heat Tool is Sports Medicine Australia / University of Sydney's (<a href="https://sma-heat-policy.sydney.edu.au/" target="_blank" rel="noopener">sma-heat-policy.sydney.edu.au</a>), not BOM's, and runs the full ISO 7933 heat-strain model. This page is a simplified steady-state heat balance using the same published sport inputs (clothing, activity, air speed, duration) and risk thresholds (sweat 850 mL/h; core 39.5° or 40°, 38.5° for low-intensity sports). It tracks the official tool in direction but not exactly: use the official tool for decisions.</p>
+    <p><b>Thermal Work Limit.</b> Brake &amp; Bates' limiting metabolic rate: the highest work rate (W/m²) an acclimatised, hydrated, self-paced worker can sustain with core ≤ 38.2° and sweat ≤ 1.2 kg/h, standard 0.35 clo wet clothing. The full commercial algorithm is not published, so this is my reimplementation of its heat-balance structure with a radiant load estimated from the sun. Zones: &lt;115 restricted, 115–140 buffer, 140–220 acclimatisation, &gt;220 unrestricted. Not for compliance use.</p>
+    <p>Weather: model data from <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo.com</a> (CC BY 4.0), not station observations. Ground-level wind is taken as 0.75 × the 10 m wind for sport and TWL.</p>
+  </details>
+</main>
+<script>
+/* ======================  CORE PHYSICS (pure functions, no DOM)  ====================== */
+const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
+const rad = d => d * Math.PI / 180;
+
+/* Saturation vapour pressure, kPa (Magnus form used in the BOM AT formula). */
+const psatKPa = T => 0.6105 * Math.exp(17.27 * T / (237.7 + T));
+/* Water vapour pressure e in hPa, as used by BOM. */
+const vapourHPa = (T, RH) => RH / 100 * 6.105 * Math.exp(17.27 * T / (237.7 + T));
+
+/* Stull (2011) wet-bulb approximation, valid ~5-99 % RH, -20..50 C. */
+function wetBulb(T, RH) {
+  const rh = clamp(RH, 5, 99);
+  return T * Math.atan(0.151977 * Math.sqrt(rh + 8.313659)) + Math.atan(T + rh)
+    - Math.atan(rh - 1.676331) + 0.00391838 * Math.pow(rh, 1.5) * Math.atan(0.023101 * rh) - 4.686035;
+}
+
+/* Solar elevation (deg) from NOAA series. lon east-positive, utcMs = UTC epoch ms. */
+function solarElevation(lat, lon, utcMs) {
+  const d = new Date(utcMs);
+  const doy = Math.floor((utcMs - Date.UTC(d.getUTCFullYear(), 0, 0)) / 86400000);
+  const hr = d.getUTCHours() + d.getUTCMinutes() / 60 + d.getUTCSeconds() / 3600;
+  const g = 2 * Math.PI / 365 * (doy - 1 + (hr - 12) / 24);
+  const eq = 229.18 * (0.000075 + 0.001868 * Math.cos(g) - 0.032077 * Math.sin(g)
+    - 0.014615 * Math.cos(2 * g) - 0.040849 * Math.sin(2 * g));
+  const dec = 0.006918 - 0.399912 * Math.cos(g) + 0.070257 * Math.sin(g) - 0.006758 * Math.cos(2 * g)
+    + 0.000907 * Math.sin(2 * g) - 0.002697 * Math.cos(3 * g) + 0.00148 * Math.sin(3 * g);
+  const ha = rad((hr * 60 + eq + 4 * lon) / 4 - 180);
+  const la = rad(lat);
+  const cz = Math.sin(la) * Math.sin(dec) + Math.cos(la) * Math.cos(dec) * Math.cos(ha);
+  return 90 - Math.acos(clamp(cz, -1, 1)) * 180 / Math.PI;
+}
+
+/* Fallback radiation when the API gives none: clear-sky + cloud attenuation. */
+function radiationFromCloud(elev, cloudPct) {
+  if (elev <= 0) return { dni: 0, dhi: 0, ghi: 0 };
+  const s = Math.sin(rad(elev)), c = clamp(cloudPct, 0, 100) / 100;
+  const ghi = Math.max(0, 990 * s - 30) * (1 - 0.75 * Math.pow(c, 3.4));
+  const kd = clamp(0.12 + 0.8 * c * c, 0, 1);
+  const dhi = ghi * kd;
+  return { ghi, dhi, dni: s > 0.05 ? (ghi - dhi) / s : 0 };
+}
+
+/* ---------------------------  Apparent temperature  --------------------------- */
+const AT = {
+  ABSORPTIVITY: 0.7,   // short-wave absorptivity of skin + light clothing
+  SKY_VIEW: 0.5,       // share of diffuse sky radiation reaching a standing person
+  M_REF: 135,          // W/m2: metabolic heat the BOM/Steadman standard person is built around (walking)
+  M_WALK: 135,
+  M_STAND: 70,         // relaxed standing
+  K: 0.06              // K of felt temperature per W/m2 of metabolic heat (assumption, see notes)
+};
+/* Body types: mass / height -> mass-per-surface-area ratio relative to the reference adult. */
+const BODIES = [
+  { id: 'slim',  label: 'Slim',     mass: 58,  height: 1.72, note: '~58 kg, 1.72 m' },
+  { id: 'avg',   label: 'Average',  mass: 70,  height: 1.75, note: '~70 kg, 1.75 m (reference)' },
+  { id: 'solid', label: 'Muscular', mass: 85,  height: 1.78, note: '~85 kg, 1.78 m, high lean mass' },
+  { id: 'heavy', label: 'Heavy',    mass: 105, height: 1.75, note: '~105 kg, 1.75 m' }
+];
+const duBois = (m, h) => 0.202 * Math.pow(m, 0.425) * Math.pow(h, 0.725);
+const REF_MPA = 70 / duBois(70, 1.75);
+const bodyRatio = b => (b.mass / duBois(b.mass, b.height)) / REF_MPA;
+
+/* BOM non-radiation AT (shade): Ta + 0.33e - 0.70ws - 4.00 */
+const atShade = (Ta, RH, ws) => Ta + 0.33 * vapourHPa(Ta, RH) - 0.70 * ws - 4.00;
+
+/* Short-wave power absorbed per m2 of body surface, W/m2. */
+function absorbedSolar(elev, dni, dhi) {
+  if (!(elev > 0)) return 0;
+  const fp = 0.308 * Math.cos(rad(elev * (0.998 - elev * elev / 50000)));   // projected-area factor, standing person
+  return AT.ABSORPTIVITY * (fp * dni + AT.SKY_VIEW * dhi);
+}
+/* Radiation term of the BOM radiation AT: +0.70 Q / (ws + 10) */
+const radiationTerm = (Q, ws) => 0.70 * Q / (ws + 10);
+
+function feelsLike(env, body) {
+  const base = atShade(env.Ta, env.RH, env.ws);
+  const r = bodyRatio(body);
+  const walk = AT.K * (AT.M_WALK * r - AT.M_REF);
+  const stand = AT.K * (AT.M_STAND * r - AT.M_REF);
+  const sun = radiationTerm(env.Q, env.ws);
+  return {
+    bom: base,
+    shadeStand: base + stand, shadeWalk: base + walk,
+    sunStand: base + stand + sun, sunWalk: base + walk + sun,
+    sunAdd: sun
+  };
+}
+
+/* ---------------------------  Excess Heat Factor  --------------------------- */
+/* DMT_i = (Tmax_i + Tmin_{i+1}) / 2  (approximates the 9am-9am convention) */
+function dmtSeries(tmax, tmin) {
+  const d = new Array(tmax.length).fill(null);
+  for (let i = 0; i < tmax.length - 1; i++)
+    if (tmax[i] != null && tmin[i + 1] != null) d[i] = (tmax[i] + tmin[i + 1]) / 2;
+  return d;
+}
+/* EHF for the 3-day period ending on day i (Nairn & Fawcett 2015). */
+function ehfAt(d, i, t95) {
+  if (i < 32 || i >= d.length) return null;
+  const a = d[i], b = d[i - 1], c = d[i - 2];
+  if (a == null || b == null || c == null) return null;
+  const mean3 = (a + b + c) / 3;
+  let s = 0, n = 0;
+  for (let k = i - 32; k <= i - 3; k++) if (d[k] != null) { s += d[k]; n++; }
+  if (n < 25) return null;
+  const sig = mean3 - t95, accl = mean3 - s / n;
+  return Math.max(0, sig) * Math.max(1, accl);
+}
+function percentile(sortedAsc, p) {
+  const x = (sortedAsc.length - 1) * p, lo = Math.floor(x), hi = Math.ceil(x);
+  return sortedAsc[lo] + (sortedAsc[hi] - sortedAsc[lo]) * (x - lo);
+}
+/* Climatology from a daily record (1971-2000): T95 of DMT, EHF85 of positive EHF. */
+function ehfClimate(tmax, tmin) {
+  const d = dmtSeries(tmax, tmin);
+  const vals = d.filter(v => v != null).sort((x, y) => x - y);
+  if (vals.length < 5000) return null;
+  const t95 = percentile(vals, 0.95);
+  const pos = [];
+  for (let i = 32; i < d.length; i++) { const e = ehfAt(d, i, t95); if (e != null && e > 0) pos.push(e); }
+  pos.sort((x, y) => x - y);
+  if (pos.length < 50) return null;
+  return { t95, ehf85: percentile(pos, 0.85), n: vals.length };
+}
+function ehfClass(ehf, ehf85) {
+  if (ehf == null) return { lvl: -1, name: 'n/a' };
+  if (ehf <= 0) return { lvl: 0, name: 'None' };
+  if (ehf < ehf85) return { lvl: 1, name: 'Low-intensity' };
+  if (ehf < 3 * ehf85) return { lvl: 2, name: 'Severe' };
+  return { lvl: 3, name: 'Extreme' };
+}
+
+/* ---------------------------  Sports heat risk  --------------------------- */
+/* Sport inputs from Tartarini et al. 2025 (SMA Extreme Heat Risk & Response Guidelines, Table 1). */
+const SPORTS = [
+  ['Abseiling', .60, 5.5, .50, 120], ['Archery', .70, 4.3, .50, 180], ['Australian football', .47, 7.5, .75, 45],
+  ['Baseball', .70, 6.0, .75, 120], ['Basketball', .37, 7.5, .75, 45], ['Bowls', .50, 5.0, .50, 180],
+  ['Canoeing', .60, 7.5, 2.0, 60], ['Cricket', .70, 6.0, .75, 120], ['Cycling', .40, 7.0, 5.0, 60],
+  ['Equestrian', .90, 7.4, 4.0, 60], ['Field athletics', .25, 7.0, 1.0, 60], ['Field hockey', .60, 7.4, .75, 45],
+  ['Fishing', .90, 4.0, .50, 180], ['Golf', .50, 5.0, .50, 180], ['Kayaking', .60, 7.5, 2.0, 60],
+  ['Long-distance running', .37, 7.5, 2.0, 60], ['Mountain biking', .55, 7.5, 5.0, 60], ['Netball', .37, 7.5, .75, 45],
+  ['Oztag', .40, 7.5, .75, 45], ['Pickleball', .40, 6.5, .50, 60], ['Rock climbing', .60, 7.5, 1.0, 45],
+  ['Rowing', .40, 7.5, 2.0, 60], ['Rugby league', .47, 7.5, .75, 45], ['Rugby union', .47, 7.5, .75, 45],
+  ['Sailing', 1.0, 6.5, 3.0, 180], ['Shooting', .60, 5.0, .50, 120], ['Soccer', .47, 7.5, 1.0, 45],
+  ['Softball', .90, 6.1, 1.0, 120], ['Tennis', .40, 7.0, .75, 60], ['Touch football', .40, 7.5, .75, 45],
+  ['Volleyball', .37, 6.8, .75, 60], ['Walking (brisk)', .50, 5.0, .50, 180]
+].map(([name, clo, met, v, min]) => ({ name, clo, met, v, min }));
+const LOW_INTENSITY = new Set(['Archery', 'Bowls', 'Fishing', 'Golf', 'Shooting', 'Walking (brisk)']);
+const MET_W = 45.0;      // W/m2 per physiological MET (1.163 W/kg x 75 kg / 1.94 m2 reference adult)
+const SUN_MRT_RISE = 4.4; // W/m2 of absorbed solar per K of mean-radiant-temperature rise (clothed, moving)
+const REF_BSA = 1.94, REF_MASS = 75;
+
+/* Steady-state heat balance in the spirit of ISO 7933 (PHS), classified with the SMA thresholds. */
+function sportRisk(env, sport, sun) {
+  const Ta = env.Ta, pa = psatKPa(Ta) * env.RH / 100;
+  const Tr = sun ? Ta + env.Q / SUN_MRT_RISE : Ta;
+  const M = Math.min(sport.met, 7.5) * MET_W;
+  const Vg = 0.75 * env.ws;                                   // 10 m wind -> ground level (assumed factor)
+  const V = sport.v > 3 ? sport.v : Math.max(sport.v, Vg);
+  const active = M > 150;
+  const Rcl = 0.155 * sport.clo * (active ? 0.65 : 1.0);      // insulation shrinks with motion
+  const fcl = 1 + 0.3 * sport.clo;
+  const hc = Math.max(3.5, 8.3 * Math.pow(V, 0.6));
+  const LR = 16.5, im = active ? 0.45 : 0.38, he = LR * hc, fr = 0.72;
+  const Cres = 0.0014 * M * (34 - Ta), Eres = 0.0173 * M * (5.87 - pa);
+  const wmax = 1.0;
+  const balance = Tsk => {
+    const hr = 4.61 * Math.pow(1 + (Tsk + Tr) / 546, 3);
+    const h = hc + fr * hr, To = (hc * Ta + fr * hr * Tr) / h;
+    const dry = (Tsk - To) / (Rcl + 1 / (fcl * h));
+    const Efull = Math.max(1, (psatKPa(Tsk) - pa) / (Rcl / (im * LR) + 1 / (fcl * he)));
+    return { Ereq: M - Cres - Eres - dry, Efull };
+  };
+  let Tsk = clamp(33.5 + 0.1 * (Ta - 20), 33, 36);
+  let b = balance(Tsk);
+  if (b.Ereq > wmax * b.Efull) { Tsk = Math.min(36.5, Tsk + 1.5); b = balance(Tsk); }  // skin warms once uncompensable
+  const { Ereq, Efull } = b;
+  const SWEAT_CAP = 1300 / REF_BSA * 0.675;                    // W/m2 latent equivalent of 1.3 L/h (typical sweat capacity)
+  let sweat = 0, storage = 0;
+  if (Ereq > 0) {
+    const w = Ereq / Efull;
+    const need = w <= wmax ? Ereq / (1 - w * w / 2) : Infinity;
+    if (need <= SWEAT_CAP) sweat = need;
+    else {                                                     // sweat capacity or wettedness exhausted
+      const Esw = (Math.sqrt(1 + 2 * SWEAT_CAP * SWEAT_CAP / (Efull * Efull)) - 1) * Efull * Efull / SWEAT_CAP;
+      const E = Math.min(Esw, wmax * Efull);
+      storage = Math.max(0, Ereq - E);
+      sweat = SWEAT_CAP;
+    }
+  }
+  const sweatMlH = sweat / 0.675 * REF_BSA;                   // W/m2 latent -> g/h
+  const core = 36.6 + 0.0036 * Math.max(M, 55) + storage * REF_BSA * sport.min * 60 / (REF_MASS * 3490);
+  const tHigh = LOW_INTENSITY.has(sport.name) ? 38.5 : 39.5;
+  let lvl = 0;
+  if (core >= 40) lvl = 3; else if (core >= tHigh) lvl = 2; else if (sweatMlH >= 850) lvl = 1;
+  return { lvl, name: ['Low', 'Moderate', 'High', 'Extreme'][lvl], sweatMlH, core, Ereq, Efull, storage };
+}
+
+/* ---------------------------  Thermal Work Limit (approximation)  --------------------------- */
+/* Heat-balance solver following the published structure of Brake & Bates (2002): core held at 38.2 C,
+   sweat rate limited to 0.67 kg/m2/h (1.2 kg/h), standard clothing 0.35 clo (wet) / 0.45 permeation,
+   find the largest metabolic rate M that can be dissipated. */
+function twl(env, sun) {
+  const Ta = env.Ta, Pk = env.P / 10, pa = psatKPa(Ta) * env.RH / 100;
+  const Tr = sun ? Ta + env.Q / SUN_MRT_RISE : Ta;
+  const V = clamp(0.75 * env.ws, 0.2, 4);
+  const Twb = wetBulb(Ta, env.RH);
+  if (Ta > 44 || Twb > 32) return { val: 0, capped: false, limited: true, Twb };
+  const Tcore = 38.2, Icl = 0.35, imp = 0.45, fr = 0.73;
+  const hc = 0.608 * Math.pow(Pk, 0.6) * Math.pow(V, 0.6);
+  const he = 1587 * hc * Pk / Math.pow(Pk - pa, 2);
+  const Rcl = 0.155 * Icl, fcl = 1 + 0.3 * Icl, LR = he / hc;
+  const Rec = Rcl / (imp * LR);
+  const surplus = M => {                       // >= 0 means M can be sustained
+    const B = M * (0.0014 * (34 - Ta) + 0.0173 * (5.87 - pa));
+    const Q = M - B;
+    let Tsk = 35;
+    for (let k = 0; k < 30; k++) {
+      const Ts = 0.1 * Tsk + 0.9 * Tcore;
+      const Kcs = 84 + 72 * Math.tanh(1.3 * (Ts - 37.9));
+      Tsk = clamp(Tcore - Q / Kcs, 28, 35.5);
+    }
+    const Ts = 0.1 * Tsk + 0.9 * Tcore;
+    const hr = 4.61 * Math.pow(1 + (Tsk + Tr) / 546, 3);
+    const h = hc + fr * hr, To = (hc * Ta + fr * hr * Tr) / h;
+    const dry = (Tsk - To) / (Rcl + 1 / (fcl * h));
+    const Efull = Math.max(1, (psatKPa(Tsk) - pa) / (Rec + 1 / (fcl * he)));
+    const Sr = clamp(0.42 + 0.44 * Math.tanh(1.16 * (Ts - 37.4)), 0, 0.67) * 674;   // W/m2 latent equivalent
+    // sweat produced Sr; evaporated fraction falls as skin wettedness rises: E = Sr (1 - E^2 / 2Efull^2)
+    let E = Sr > 0 ? (Math.sqrt(1 + 2 * Sr * Sr / (Efull * Efull)) - 1) * Efull * Efull / Sr : 0;
+    E = Math.min(E, Efull);
+    return E + dry - Q;
+  };
+  let lo = 60, hi = 800;
+  if (surplus(lo) < 0) return { val: 0, capped: false, limited: false, Twb };
+  if (surplus(hi) >= 0) lo = hi;
+  else for (let k = 0; k < 50; k++) { const mid = (lo + hi) / 2; if (surplus(mid) >= 0) lo = mid; else hi = mid; }
+  return { val: Math.min(lo, 380), capped: lo > 380, limited: false, Twb };
+}
+function twlZone(v, limited) {
+  if (limited || v < 115) return { lvl: 3, name: 'Restricted', text: 'Essential work only; no lone or unacclimatised work.' };
+  if (v < 140) return { lvl: 2, name: 'Buffer', text: 'Warning zone: add controls (shade, airflow); avoid lone work.' };
+  if (v < 220) return { lvl: 1, name: 'Acclimatisation', text: 'Fine for acclimatised, hydrated workers.' };
+  return { lvl: 0, name: 'Unrestricted', text: 'No limit on self-paced work.' };
+}
+
+/* AT display bands (indicative only, not an official scale) */
+function atBand(v) {
+  if (v < 10) return { lvl: 0, name: 'Cold' };
+  if (v < 17) return { lvl: 1, name: 'Cool' };
+  if (v < 25) return { lvl: 2, name: 'Comfortable' };
+  if (v < 30) return { lvl: 3, name: 'Warm' };
+  if (v < 35) return { lvl: 4, name: 'Hot' };
+  if (v < 40) return { lvl: 5, name: 'Very hot' };
+  return { lvl: 6, name: 'Extreme' };
+}
+
+/* ======================  APP / UI  ====================== */
+const $ = s => document.querySelector(s);
+const f1 = x => (Math.round(x * 10) / 10).toFixed(1);
+const f0 = x => String(Math.round(x));
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* storage unavailable */ }
+  }
+};
+const state = {
+  loc: store.get('loc', null),
+  body: store.get('body', 'avg'),
+  sport: store.get('sport', 'Long-distance running'),
+  expo: store.get('expo', 'sun'),
+  wx: null, clim: null, climErr: null, loadedAt: 0
+};
+const LV = ['lv0', 'lv1', 'lv2', 'lv3', 'lv4', 'lv5', 'lv6'];
+
+/* ---------- network ---------- */
+async function getJSON(url, ms = 20000) {
+  const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), ms);
+  try {
+    const r = await fetch(url, { signal: ctl.signal });
+    let j = null; try { j = await r.json(); } catch (e) { /* not JSON */ }
+    if (!r.ok || (j && j.error)) throw new Error((j && j.reason) || ('HTTP ' + r.status));
+    return j;
+  } finally { clearTimeout(t); }
+}
+
+function parseWx(j, lat, lon) {
+  const off = j.utc_offset_seconds || 0;
+  const toUTC = t => Date.parse(t + (t.length === 16 ? ':00' : '') + 'Z') - off * 1000;
+  const H = j.hourly, hours = [];
+  for (let i = 0; i < H.time.length; i++) {
+    if (H.temperature_2m[i] == null || H.relative_humidity_2m[i] == null) continue;
+    const utc = toUTC(H.time[i]);
+    const elev = solarElevation(lat, lon, utc - 30 * 60000);       // radiation = mean of the preceding hour
+    let dni = H.direct_normal_irradiance ? H.direct_normal_irradiance[i] : null;
+    let dhi = H.diffuse_radiation ? H.diffuse_radiation[i] : null;
+    if (dni == null || dhi == null) { const r = radiationFromCloud(elev, H.cloud_cover ? H.cloud_cover[i] : 50); dni = r.dni; dhi = r.dhi; }
+    hours.push({ t: H.time[i], utc, elev, Ta: H.temperature_2m[i], RH: H.relative_humidity_2m[i],
+      ws: H.wind_speed_10m[i] == null ? 0 : H.wind_speed_10m[i], P: H.surface_pressure ? H.surface_pressure[i] : 1013,
+      Q: absorbedSolar(elev, dni, dhi), dni, dhi });
+  }
+  const c = j.current;
+  const pick = (...ks) => { for (const k of ks) if (c[k] != null) return c[k]; return null; };
+  const instant = c.direct_normal_irradiance_instant != null;
+  const elev = solarElevation(lat, lon, toUTC(c.time) - (instant ? 0 : 30 * 60000));
+  let dni = pick('direct_normal_irradiance_instant', 'direct_normal_irradiance');
+  let dhi = pick('diffuse_radiation_instant', 'diffuse_radiation');
+  let radSrc = 'Open-Meteo';
+  if (dni == null || dhi == null) { const r = radiationFromCloud(elev, c.cloud_cover == null ? 50 : c.cloud_cover); dni = r.dni; dhi = r.dhi; radSrc = 'estimated from cloud cover'; }
+  const now = { Ta: c.temperature_2m, RH: c.relative_humidity_2m, ws: c.wind_speed_10m == null ? 0 : c.wind_speed_10m,
+    P: c.surface_pressure || 1013, elev, dni, dhi, Q: absorbedSolar(elev, dni, dhi), time: c.time, radSrc };
+  const D = j.daily;
+  return { now, hours, hour0: hours.findIndex(h => h.t === c.time.slice(0, 13) + ':00'),
+    daily: { date: D.time, tmax: D.temperature_2m_max, tmin: D.temperature_2m_min }, today: D.time.indexOf(c.time.slice(0, 10)) };
+}
+
+async function loadWeather(lat, lon) {
+  const hrad = 'shortwave_radiation,direct_normal_irradiance,diffuse_radiation';
+  const hbase = 'temperature_2m,relative_humidity_2m,wind_speed_10m,surface_pressure,cloud_cover';
+  const cbase = 'temperature_2m,relative_humidity_2m,wind_speed_10m,surface_pressure,cloud_cover';
+  const common = `latitude=${lat.toFixed(4)}&longitude=${lon.toFixed(4)}&daily=temperature_2m_max,temperature_2m_min&wind_speed_unit=ms&timezone=auto&past_days=35&forecast_days=8`;
+  const base = 'https://api.open-meteo.com/v1/forecast?' + common;
+  const attempts = [
+    `${base}&hourly=${hbase},${hrad}&current=${cbase},shortwave_radiation_instant,direct_normal_irradiance_instant,diffuse_radiation_instant`,
+    `${base}&hourly=${hbase},${hrad}&current=${cbase},${hrad}`,
+    `${base}&hourly=${hbase}&current=${cbase}`
+  ];
+  let lastErr;
+  for (const u of attempts) {
+    try { return parseWx(await getJSON(u), lat, lon); } catch (e) { lastErr = e; }
+  }
+  throw lastErr;
+}
+
+async function loadClimate(lat, lon) {
+  const key = `clim2:${lat.toFixed(1)},${lon.toFixed(1)}`;
+  const hit = store.get(key, null);
+  if (hit && hit.t95 != null) return hit;
+  const u = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat.toFixed(4)}&longitude=${lon.toFixed(4)}&start_date=1971-01-01&end_date=2000-12-31&daily=temperature_2m_max,temperature_2m_min&timezone=auto`;
+  const j = await getJSON(u, 60000);
+  const c = ehfClimate(j.daily.temperature_2m_max, j.daily.temperature_2m_min);
+  if (!c) throw new Error('Not enough climate data for this location');
+  store.set(key, c);
+  return c;
+}
+
+/* ---------- location ---------- */
+async function reverseName(lat, lon) {
+  try {
+    const j = await getJSON(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`, 8000);
+    const a = j.locality || j.city || j.principalSubdivision;
+    const b = j.principalSubdivision && j.principalSubdivision !== a ? j.principalSubdivision : j.countryName;
+    if (a) return b ? `${a}, ${b}` : a;
+  } catch (e) { /* offline name lookup is optional */ }
+  return `${lat.toFixed(2)}°, ${lon.toFixed(2)}°`;
+}
+function geolocate() {
+  return new Promise((res, rej) => {
+    if (!navigator.geolocation) return rej(new Error('Geolocation not available'));
+    navigator.geolocation.getCurrentPosition(p => res({ lat: p.coords.latitude, lon: p.coords.longitude }),
+      e => rej(new Error(e.message || 'Location denied')), { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 });
+  });
+}
+async function useMyLocation() {
+  setMsg('');
+  $('#place').textContent = 'Locating…';
+  try {
+    const p = await geolocate();
+    state.loc = { lat: p.lat, lon: p.lon, name: await reverseName(p.lat, p.lon), manual: false };
+    store.set('loc', state.loc);
+  } catch (e) {
+    if (!state.loc) { $('#place').textContent = 'No location'; setMsg('Could not get your location (' + e.message + '). Search for a place above.'); $('#q').focus(); return; }
+    setMsg('Could not get your location (' + e.message + '); showing ' + state.loc.name + '.');
+  }
+  refresh();
+}
+
+/* ---------- refresh ---------- */
+let busy = false;
+async function refresh() {
+  if (busy || !state.loc) return;
+  busy = true;
+  const myLoc = state.loc, { lat, lon } = myLoc;
+  $('#place').textContent = state.loc.name;
+  $('#upd').innerHTML = '<span class="spin"></span>updating…';
+  try {
+    state.wx = await loadWeather(lat, lon);
+    state.loadedAt = Date.now();
+    setMsg(state.wx.now.radSrc !== 'Open-Meteo' ? 'Solar radiation data unavailable; sun effects are estimated from cloud cover.' : '');
+    $('#upd').textContent = 'Updated ' + state.wx.now.time.slice(11, 16) + ' local';
+  } catch (e) {
+    $('#upd').textContent = '';
+    setMsg('Weather request failed: ' + e.message);
+    busy = false; render(); return;
+  }
+  state.clim = null; state.climErr = null;
+  render();
+  busy = false;
+  try { state.clim = await loadClimate(lat, lon); } catch (e) { state.climErr = e.message; }
+  if (state.loc === myLoc) renderEHF();
+}
+function setMsg(t) { const m = $('#msg'); m.textContent = t; m.hidden = !t; }
+
+/* ---------- rendering ---------- */
+function tile(lbl, sub, val, band, extra = '') {
+  return `<div class="tile ${LV[band.lvl]} ${extra}"><div class="lbl"><b>${lbl}</b> ${sub}</div><div class="val">${f1(val)}°</div><div class="band">${band.name}</div></div>`;
+}
+function render() {
+  const w = state.wx;
+  if (!w) return;
+  renderAT(); renderEHF(); renderSport(); renderTWL();
+}
+function renderAT() {
+  const w = state.wx, n = w.now, body = BODIES.find(b => b.id === state.body);
+  const f = feelsLike(n, body), night = n.elev <= 0 ? 'night' : '';
+  $('#atGrid').innerHTML =
+    tile('In shade', 'standing', f.shadeStand, atBand(f.shadeStand)) +
+    tile('In shade', 'walking', f.shadeWalk, atBand(f.shadeWalk)) +
+    tile('In sun', 'standing', f.sunStand, atBand(f.sunStand), night) +
+    tile('In sun', 'walking', f.sunWalk, atBand(f.sunWalk), night);
+  $('#conds').innerHTML =
+    `<span>Air <b>${f1(n.Ta)}°</b></span><span>Humidity <b>${f0(n.RH)}%</b></span>` +
+    `<span>Wind <b>${f0(n.ws * 3.6)} km/h</b></span>` +
+    (n.elev > 0 ? `<span>Sun <b>${f0(n.elev)}°</b> high · adds <b>+${f1(f.sunAdd)}°</b></span>` : `<span>Sun <b>below horizon</b></span>`);
+  $('#atFoot').textContent = `BOM apparent temperature (shade, walking, no radiation): ${f1(f.bom)}°. Body-type, standing and sun values are extensions: see notes.`;
+}
+
+function renderEHF() {
+  const box = $('#ehf'), w = state.wx;
+  if (!w) return;
+  if (state.climErr) { box.innerHTML = `<p class="head">Heatwave climatology unavailable: <span class="mut">${esc(state.climErr)}</span></p>`; return; }
+  if (!state.clim) { box.innerHTML = '<p class="head mut"><span class="spin"></span>Building local heatwave climatology (one-off per place)…</p>'; return; }
+  const { t95, ehf85 } = state.clim, D = w.daily, d = dmtSeries(D.tmax, D.tmin), ti = w.today;
+  if (ti < 0) { box.innerHTML = '<p class="head mut">No daily data for today.</p>'; return; }
+  const items = [];
+  for (let o = -1; o <= 5; o++) {
+    const i = ti + o, e = ehfAt(d, i, t95), cl = ehfClass(e, ehf85);
+    items.push({ o, e, cl, date: D.date[i] });
+  }
+  const dayName = s => s ? new Date(s + 'T00:00:00Z').toLocaleDateString('en-AU', { weekday: 'short', timeZone: 'UTC' }) : '–';
+  const cur = items.find(x => x.o === 0);
+  const future = items.filter(x => x.o > 0 && x.cl.lvl > 0);
+  let head;
+  if (cur && cur.cl.lvl > 0) head = `<b>Heatwave conditions now:</b> ${cur.cl.name} (EHF ${f1(cur.e)} K²)`;
+  else if (future.length) { const pk = future.reduce((a, b) => b.e > a.e ? b : a); head = `<b>Heatwave building:</b> ${dayName(future[0].date)} onward, peaking ${pk.cl.name.toLowerCase()} on ${dayName(pk.date)}`; }
+  else head = '<b>No heatwave</b> now or in the next 5 days';
+  const cls = ['lvN', 'lv3', 'lv5', 'lv6'];
+  box.innerHTML = `<p class="head">${head}</p><div class="chips">` + items.map(x =>
+    `<div class="chip ${x.cl.lvl < 0 ? 'lvN' : cls[x.cl.lvl]} ${x.o === 0 ? 'today' : ''}" title="3 days ending ${x.date}: ${x.cl.name}">` +
+    `<span class="d">${x.o === 0 ? 'Today' : dayName(x.date)}</span><b>${x.e == null ? '–' : (x.e < 10 ? f1(x.e) : f0(x.e))}</b><small>${x.cl.lvl <= 0 ? (x.cl.lvl < 0 ? '' : 'none') : x.cl.name.split('-')[0].toLowerCase()}</small></div>`).join('') + '</div>' +
+    `<p class="foot">EHF in K² for the 3 days ending each day. Local T95 ${f1(t95)}° · EHF85 ${f1(ehf85)} K² (severe ≥ EHF85, extreme ≥ 3×).</p>`;
+}
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+function envOf(h) { return { Ta: h.Ta, RH: h.RH, ws: h.ws, P: h.P, Q: h.Q }; }
+function renderSport() {
+  const w = state.wx, n = w.now, sun = state.expo === 'sun';
+  const sp = SPORTS.find(s => s.name === state.sport) || SPORTS[0];
+  const r = sportRisk(n, sp, sun), cls = ['lv2', 'lv3', 'lv4', 'lv5'];
+  $('#sportBadge').innerHTML = `<div class="badge ${cls[r.lvl]}"><div class="big">${r.name}</div>` +
+    `<div class="sub">${sp.name}, ${sp.min} min · sweat ≈ ${f0(Math.round(r.sweatMlH / 50) * 50)} mL/h · core ≈ ${f1(r.core)}° ${sun ? 'in sun' : 'in shade'}</div></div>`;
+  const i0 = Math.max(0, w.hour0), H = w.hours.slice(i0, i0 + 24);
+  const rs = H.map(h => sportRisk(envOf(h), sp, sun));
+  $('#sportStrip').innerHTML = rs.map((x, i) => `<div class="cell ${cls[x.lvl]} ${i === 0 ? 'now' : ''}" title="${H[i].t.slice(11, 16)}: ${x.name}"></div>`).join('');
+  $('#sportHrs').innerHTML = H.map((h, i) => `<span>${i % 4 === 0 ? h.t.slice(11, 13) : ''}</span>`).join('');
+  const peak = Math.max(...rs.map(x => x.lvl)), first = rs.findIndex(x => x.lvl === peak), last = rs.length - 1 - [...rs].reverse().findIndex(x => x.lvl === peak);
+  $('#sportFoot').textContent = peak > 0 && H.length
+    ? `Next 24 h peak: ${rs[first].name}, ${H[first].t.slice(0, 10) !== H[0].t.slice(0, 10) ? 'tomorrow ' : ''}${H[first].t.slice(11, 13)}:00–${H[last].t.slice(11, 13)}:59.`
+    : 'Next 24 h: low risk throughout.';
+}
+function renderTWL() {
+  const n = state.wx.now, sh = twl(n, false), su = twl(n, true), cls = ['lv2', 'lv3', 'lv4', 'lv5'];
+  const t = (lbl, r) => { const z = twlZone(r.val, r.limited);
+    return `<div class="tile ${cls[z.lvl]}"><div class="lbl"><b>${lbl}</b></div><div class="val">${r.limited ? '0' : (r.capped ? '≥380' : f0(r.val))}<small> W/m²</small></div><div class="band">${z.name}</div></div>`; };
+  $('#twlGrid').innerHTML = t('In shade', sh) + t('In sun', su);
+  const cur = state.expo === 'sun' ? su : sh;
+  $('#twlFoot').textContent = (cur.limited ? 'Outside TWL validity (dry bulb > 44° or wet bulb > 32°): treat as restricted. ' : '') +
+    twlZone(cur.val, cur.limited).text + ` Wet bulb ${f1(cur.Twb)}°.`;
+}
+
+/* ---------- controls ---------- */
+function buildControls() {
+  const bs = $('#bodySeg');
+  bs.innerHTML = BODIES.map(b => `<button data-id="${b.id}" title="${b.note}" aria-pressed="${b.id === state.body}">${b.label}</button>`).join('');
+  bs.onclick = e => { const b = e.target.closest('button'); if (!b) return; state.body = b.dataset.id; store.set('body', state.body);
+    bs.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x.dataset.id === state.body)); if (state.wx) renderAT(); };
+  const sel = $('#sportSel');
+  sel.innerHTML = SPORTS.map(s => `<option>${s.name}</option>`).join('');
+  sel.value = SPORTS.some(s => s.name === state.sport) ? state.sport : SPORTS[0].name;
+  sel.onchange = () => { state.sport = sel.value; store.set('sport', state.sport); if (state.wx) renderSport(); };
+  const es = $('#expoSeg');
+  const syncExpo = () => es.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x.dataset.id === state.expo));
+  syncExpo();
+  es.onclick = e => { const b = e.target.closest('button'); if (!b) return; state.expo = b.dataset.id; store.set('expo', state.expo); syncExpo(); if (state.wx) { renderSport(); renderTWL(); } };
+  $('#btnLoc').onclick = useMyLocation;
+  $('#btnRef').onclick = () => refresh();
+  const q = $('#q'), ul = $('#results'); let timer;
+  q.oninput = () => { clearTimeout(timer); const v = q.value.trim(); if (v.length < 2) { ul.hidden = true; return; }
+    timer = setTimeout(async () => {
+      try {
+        const j = await getJSON(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(v)}&count=6&language=en&format=json`, 8000);
+        ul.innerHTML = '';
+        (j.results || []).forEach(r => { const li = document.createElement('li');
+          li.textContent = [r.name, r.admin1, r.country].filter(Boolean).join(', ');
+          li.onclick = () => { state.loc = { lat: r.latitude, lon: r.longitude, name: [r.name, r.admin1 || r.country].filter(Boolean).join(', '), manual: true };
+            store.set('loc', state.loc); ul.hidden = true; q.value = ''; refresh(); };
+          ul.appendChild(li); });
+        ul.hidden = !ul.children.length;
+      } catch (e) { ul.hidden = true; }
+    }, 300); };
+  document.addEventListener('click', e => { if (!e.target.closest('.search')) ul.hidden = true; });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && state.loc && Date.now() - state.loadedAt > 10 * 60000) refresh(); });
+  setInterval(() => { if (!document.hidden && state.loc && Date.now() - state.loadedAt > 10 * 60000) refresh(); }, 60000);
+}
+
+buildControls();
+if (state.loc && state.loc.manual) refresh();
+else useMyLocation();
+
+</script>
+</body>
+</html>
