@@ -102,33 +102,85 @@ a{color:var(--accent)}
 @keyframes sp{to{transform:rotate(360deg)}}
 @media (max-width:380px){.tile .val{font-size:28px}.hd .mut{display:none}}
 
+.hint{margin:-2px 0 10px;font-size:13px;color:var(--mut);line-height:1.35}
+.lab{font-size:12px;color:var(--mut);width:34px}
+.seg button small{opacity:.7;font-size:11px}
+.dayseg{display:flex;width:100%}
+.dayseg button{flex:1;padding:6px 4px}
+.readout{font-size:13px;margin:8px 0 2px;min-height:18px;color:var(--mut)}
+.readout b{color:var(--ink)}
+.key{display:inline-block;width:12px;height:3px;border-radius:2px;vertical-align:middle;margin:0 4px 0 8px;background:var(--sc)}
+.chart svg{width:100%;height:auto;display:block}
+.chart .grid{stroke:var(--line);stroke-width:1}
+.chart .ax{fill:var(--mut);font-size:19px}
+.chart .nightband{fill:color-mix(in srgb,var(--mut) 9%,transparent)}
+.chart .nowline{stroke:var(--mut);stroke-dasharray:3 3}
+.chart .hovline{stroke:var(--mut);stroke-width:1}
+.chart .ln{fill:none;stroke:var(--sc);stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.chart .dot{fill:var(--sc);stroke:var(--card);stroke-width:2}
+.s1{--sc:#2a78d6}.s2{--sc:#1baf7a}.s3{--sc:#eb6834}
+@media (prefers-color-scheme: dark){.s1{--sc:#3987e5}.s2{--sc:#199e70}.s3{--sc:#d95926}}
+.ink{color:var(--ink)}
+.uvs{display:grid;grid-template-columns:repeat(16,1fr);gap:2px;margin-top:6px}
+.uvc{border-radius:5px;text-align:center;padding:3px 0 1px;line-height:1.1;border-width:0;background:color-mix(in srgb,var(--c) 30%,var(--card))}
+.uvc b{font-size:11.5px}
+.uvc span{display:block;font-size:8.5px;color:var(--mut);height:10px;white-space:nowrap}
+.uvc.now{outline:2px solid var(--ink);outline-offset:1px}
+.favs{display:flex;gap:6px;overflow-x:auto;padding:2px 0 4px;scrollbar-width:none}
+.fav{display:inline-flex;flex:none;border:1px solid var(--line);background:var(--card);border-radius:999px;overflow:hidden}
+.fav button{border:0;background:transparent;padding:5px 4px 5px 11px;cursor:pointer;font-size:13px;white-space:nowrap}
+.fav button+button{padding:5px 10px 5px 4px;color:var(--mut)}
+.fav.cur{border-color:var(--accent)}
+.fav.cur button:first-child{color:var(--accent);font-weight:600}
+#btnFav[aria-pressed=true]{color:#e3a008}
+
 </style>
 </head>
 <body>
 <main class="app">
   <header class="top">
     <div class="where"><b id="place">Locating…</b><span id="upd"></span></div>
+    <button class="ibtn" id="btnFav" title="Add to favourites" aria-label="Favourite">☆</button>
     <button class="ibtn" id="btnLoc" title="Use my location" aria-label="Use my location">◎</button>
     <button class="ibtn" id="btnRef" title="Refresh" aria-label="Refresh">↻</button>
   </header>
   <div class="search"><input id="q" type="search" placeholder="Search another place…" autocomplete="off" aria-label="Search place"><ul id="results" hidden></ul></div>
+  <div class="favs" id="favs" hidden></div>
   <div class="msg" id="msg" hidden></div>
 
   <section class="card">
     <div class="hd"><h2>Feels like</h2><span class="mut">BOM apparent temperature</span></div>
-    <div class="row"><span class="mut" style="font-size:12px">Body type</span><div class="seg" id="bodySeg" role="group" aria-label="Body type"></div></div>
+    <p class="hint">How hot the air would feel to you in each situation. Above ~32° feels hot; above ~38° take it easy.</p>
+    <div class="row"><span class="lab">Body</span><div class="seg" id="bodySeg" role="group" aria-label="Body type"></div></div>
+    <div class="row" style="margin-top:6px"><span class="lab">Run</span><div class="seg" id="runSeg" role="group" aria-label="Running intensity (km/h)"></div></div>
     <div class="grid2" id="atGrid"></div>
     <div class="conds" id="conds"></div>
-    <p class="foot" id="atFoot"></p>
+  </section>
+
+  <section class="card">
+    <div class="hd"><h2>Hourly</h2><span class="mut">past &amp; forecast</span></div>
+    <p class="hint">Tap the chart for any hour. Above the blue line feels hotter than the air; below feels cooler (wind, dry air).</p>
+    <div class="seg dayseg" id="daySeg" role="group" aria-label="Day"></div>
+    <p class="readout" id="readout"></p>
+    <div class="chart" id="chart"></div>
+    <p class="foot" id="chartFoot"></p>
+  </section>
+
+  <section class="card">
+    <div class="hd"><h2>UV index</h2><span class="mut">sunburn risk</span></div>
+    <p class="hint">At UV 3 or above, wear sunscreen, a hat and sunglasses.</p>
+    <div id="uv"></div>
   </section>
 
   <section class="card">
     <div class="hd"><h2>Excess Heat Factor</h2><span class="mut">multi-day heatwaves</span></div>
+    <p class="hint">Above 0 means a heatwave for this place. Severe and extreme ones are when heat illness and deaths rise.</p>
     <div id="ehf"><p class="head mut"><span class="spin"></span>Loading…</p></div>
   </section>
 
   <section class="card">
     <div class="hd"><h2>Sports heat risk</h2><span class="mut">vigorous activity</span></div>
+    <p class="hint">Low: play as normal · Moderate: drink more, add rest breaks · High: cool down actively, cut it short · Extreme: stop.</p>
     <div class="row"><select id="sportSel" aria-label="Sport"></select>
       <div class="seg" id="expoSeg" role="group" aria-label="Exposure"><button data-id="sun">Sun</button><button data-id="shade">Shade</button></div></div>
     <div id="sportBadge"></div>
@@ -138,6 +190,7 @@ a{color:var(--accent)}
 
   <section class="card">
     <div class="hd"><h2>Thermal Work Limit</h2><span class="mut">sustainable work rate</span></div>
+    <p class="hint">Higher is safer: the hardest pace of work you can keep up all day. Brisk walking ≈ 150 W/m², heavy labour ≈ 250.</p>
     <div class="grid2" id="twlGrid"></div>
     <p class="foot" id="twlFoot"></p>
   </section>
@@ -145,7 +198,9 @@ a{color:var(--accent)}
   <details class="card">
     <summary>How these are calculated</summary>
     <p><b>Feels like.</b> Shade, walking is the BOM formula <code>AT = Ta + 0.33e − 0.70ws − 4.00</code> (e = vapour pressure in hPa, ws = 10 m wind in m/s). In sun adds the radiation term <code>0.70·Q/(ws+10)</code> from BOM's radiation version, with Q = absorbed solar power per m² of skin (0.7 absorptivity, standing-person projected-area factor, half the sky diffuse). Ground reflection and hot-surface heat are ignored, so real sun can feel hotter still.</p>
-    <p><b>Standing and body type are my additions, not BOM's.</b> Standing is the walking value minus 0.06 K per W/m² of metabolic heat (70 vs 135 W/m²). Body type scales metabolic heat per m² of skin by mass ÷ surface area (DuBois), relative to a 70 kg, 1.75 m adult. Treat as indicative.</p>
+    <p><b>Standing, running and body type are my additions, not BOM's.</b> They shift the walking value by the change in metabolic heat per m² of skin: 0.06 K per W/m² below walking (standing ≈ 70 vs 135 W/m²), tapering logarithmically above it so running stays sensible. Running uses ~1 MET per km/h (Easy 9, Steady 12, Hard 15 km/h ≈ 400–640 W/m²) and adds running speed to the wind, which cools and slightly reduces the sun term. Body type scales metabolic heat by mass ÷ surface area (DuBois) relative to a 70 kg, 1.75 m adult. Indicative only: for running, the sports heat risk below is the better guide to actual danger.</p>
+    <p><b>Hourly.</b> Open-Meteo model data: past days are model analyses (close to, but not, station observations), later days are forecasts. Feels-like lines use the walking values for the selected body type.</p>
+    <p><b>UV index.</b> Open-Meteo hourly forecast (clear-sky-adjusted model UV). Categories follow the WHO scale; the protection window is the hours with UV ≥ 3, the SunSmart / BOM threshold.</p>
     <p><b>Excess Heat Factor.</b> <code>EHF = max(0, EHIsig) × max(1, EHIaccl)</code> (Nairn &amp; Fawcett) using daily mean temperature (max + next-day min)/2: EHIsig is the 3-day mean minus the local 95th percentile (T95), EHIaccl the 3-day mean minus the prior 30-day mean. T95 and EHF85 come from ERA5 reanalysis for 1971–2000 at your location, not a station record, so they differ a little from BOM's. Severe ≥ EHF85, extreme ≥ 3×EHF85. Recent days are model analyses, later days forecasts.</p>
     <p><b>Sports heat risk.</b> The Sports Heat Tool is Sports Medicine Australia / University of Sydney's (<a href="https://sma-heat-policy.sydney.edu.au/" target="_blank" rel="noopener">sma-heat-policy.sydney.edu.au</a>), not BOM's, and runs the full ISO 7933 heat-strain model. This page is a simplified steady-state heat balance using the same published sport inputs (clothing, activity, air speed, duration) and risk thresholds (sweat 850 mL/h; core 39.5° or 40°, 38.5° for low-intensity sports). It tracks the official tool in direction but not exactly: use the official tool for decisions.</p>
     <p><b>Thermal Work Limit.</b> Brake &amp; Bates' limiting metabolic rate: the highest work rate (W/m²) an acclimatised, hydrated, self-paced worker can sustain with core ≤ 38.2° and sweat ≤ 1.2 kg/h, standard 0.35 clo wet clothing. The full commercial algorithm is not published, so this is my reimplementation of its heat-balance structure with a radiant load estimated from the sun. Zones: &lt;115 restricted, 115–140 buffer, 140–220 acclimatisation, &gt;220 unrestricted. Not for compliance use.</p>
@@ -227,11 +282,32 @@ function absorbedSolar(elev, dni, dhi) {
 /* Radiation term of the BOM radiation AT: +0.70 Q / (ws + 10) */
 const radiationTerm = (Q, ws) => 0.70 * Q / (ws + 10);
 
+/* Felt-temperature offset for metabolic heat M (W/m2) relative to the walking reference.
+   Linear (0.06 K per W/m2) below the reference; logarithmic above it so running does not explode.
+   Continuous in value and slope at M_REF. */
+function metOffset(M) {
+  return M <= AT.M_REF ? AT.K * (M - AT.M_REF) : AT.K * AT.M_REF * Math.log(M / AT.M_REF);
+}
+/* Running intensities: speed and metabolic cost (Compendium of Physical Activities, ~1 MET per km/h). */
+const RUNS = [
+  { id: 'easy',   label: 'Easy',   kmh: 9,  met: 9.0 },
+  { id: 'steady', label: 'Steady', kmh: 12, met: 11.8 },
+  { id: 'hard',   label: 'Hard',   kmh: 15, met: 14.5 }
+];
+function runFeels(env, body, run) {
+  const r = bodyRatio(body);
+  const M = run.met * 1.163 * REF_MPA * r;                         // W/m2 of skin
+  const v10 = run.kmh / 3.6 / 0.75;                                 // running speed as a 10 m-equivalent wind
+  const wsEff = Math.sqrt(env.ws * env.ws + v10 * v10);
+  const shade = atShade(env.Ta, env.RH, wsEff) + metOffset(M);
+  return { shade, sun: shade + radiationTerm(env.Q, wsEff), M };
+}
+
 function feelsLike(env, body) {
   const base = atShade(env.Ta, env.RH, env.ws);
   const r = bodyRatio(body);
-  const walk = AT.K * (AT.M_WALK * r - AT.M_REF);
-  const stand = AT.K * (AT.M_STAND * r - AT.M_REF);
+  const walk = metOffset(AT.M_WALK * r);
+  const stand = metOffset(AT.M_STAND * r);
   const sun = radiationTerm(env.Q, env.ws);
   return {
     bom: base,
@@ -410,6 +486,16 @@ function atBand(v) {
   return { lvl: 6, name: 'Extreme' };
 }
 
+/* UV index categories (WHO); sun protection recommended at UV 3+ (SunSmart). */
+function uvBand(u) {
+  if (u == null) return { lvl: -1, name: 'n/a' };
+  if (u < 3) return { lvl: 0, name: 'Low' };
+  if (u < 6) return { lvl: 1, name: 'Moderate' };
+  if (u < 8) return { lvl: 2, name: 'High' };
+  if (u < 11) return { lvl: 3, name: 'Very high' };
+  return { lvl: 4, name: 'Extreme' };
+}
+
 /* ======================  APP / UI  ====================== */
 const $ = s => document.querySelector(s);
 const f1 = x => (Math.round(x * 10) / 10).toFixed(1);
@@ -424,6 +510,9 @@ const state = {
   body: store.get('body', 'avg'),
   sport: store.get('sport', 'Long-distance running'),
   expo: store.get('expo', 'sun'),
+  run: store.get('run', 'easy'),
+  favs: store.get('favs', []),
+  day: 0, hover: null,
   wx: null, clim: null, climErr: null, loadedAt: 0
 };
 const LV = ['lv0', 'lv1', 'lv2', 'lv3', 'lv4', 'lv5', 'lv6'];
@@ -452,7 +541,7 @@ function parseWx(j, lat, lon) {
     if (dni == null || dhi == null) { const r = radiationFromCloud(elev, H.cloud_cover ? H.cloud_cover[i] : 50); dni = r.dni; dhi = r.dhi; }
     hours.push({ t: H.time[i], utc, elev, Ta: H.temperature_2m[i], RH: H.relative_humidity_2m[i],
       ws: H.wind_speed_10m[i] == null ? 0 : H.wind_speed_10m[i], P: H.surface_pressure ? H.surface_pressure[i] : 1013,
-      Q: absorbedSolar(elev, dni, dhi), dni, dhi });
+      Q: absorbedSolar(elev, dni, dhi), dni, dhi, uv: H.uv_index ? H.uv_index[i] : null });
   }
   const c = j.current;
   const pick = (...ks) => { for (const k of ks) if (c[k] != null) return c[k]; return null; };
@@ -466,19 +555,21 @@ function parseWx(j, lat, lon) {
     P: c.surface_pressure || 1013, elev, dni, dhi, Q: absorbedSolar(elev, dni, dhi), time: c.time, radSrc };
   const D = j.daily;
   return { now, hours, hour0: hours.findIndex(h => h.t === c.time.slice(0, 13) + ':00'),
-    daily: { date: D.time, tmax: D.temperature_2m_max, tmin: D.temperature_2m_min }, today: D.time.indexOf(c.time.slice(0, 10)) };
+    daily: { date: D.time, tmax: D.temperature_2m_max, tmin: D.temperature_2m_min, uvmax: D.uv_index_max || null },
+    today: D.time.indexOf(c.time.slice(0, 10)), nowMin: +c.time.slice(14, 16) || 0 };
 }
 
 async function loadWeather(lat, lon) {
   const hrad = 'shortwave_radiation,direct_normal_irradiance,diffuse_radiation';
-  const hbase = 'temperature_2m,relative_humidity_2m,wind_speed_10m,surface_pressure,cloud_cover';
+  const hbase = 'temperature_2m,relative_humidity_2m,wind_speed_10m,surface_pressure,cloud_cover,uv_index';
   const cbase = 'temperature_2m,relative_humidity_2m,wind_speed_10m,surface_pressure,cloud_cover';
-  const common = `latitude=${lat.toFixed(4)}&longitude=${lon.toFixed(4)}&daily=temperature_2m_max,temperature_2m_min&wind_speed_unit=ms&timezone=auto&past_days=35&forecast_days=8`;
+  const common = `latitude=${lat.toFixed(4)}&longitude=${lon.toFixed(4)}&daily=temperature_2m_max,temperature_2m_min,uv_index_max&wind_speed_unit=ms&timezone=auto&past_days=35&forecast_days=8`;
   const base = 'https://api.open-meteo.com/v1/forecast?' + common;
   const attempts = [
     `${base}&hourly=${hbase},${hrad}&current=${cbase},shortwave_radiation_instant,direct_normal_irradiance_instant,diffuse_radiation_instant`,
     `${base}&hourly=${hbase},${hrad}&current=${cbase},${hrad}`,
-    `${base}&hourly=${hbase}&current=${cbase}`
+    `${base}&hourly=${hbase}&current=${cbase}`,
+    base.replace(',uv_index_max', '') + `&hourly=${hbase.replace(',uv_index', '')}&current=${cbase}`
   ];
   let lastErr;
   for (const u of attempts) {
@@ -537,6 +628,7 @@ async function refresh() {
   busy = true;
   const myLoc = state.loc, { lat, lon } = myLoc;
   $('#place').textContent = state.loc.name;
+  renderFavs();
   $('#upd').innerHTML = '<span class="spin"></span>updating…';
   try {
     state.wx = await loadWeather(lat, lon);
@@ -563,21 +655,98 @@ function tile(lbl, sub, val, band, extra = '') {
 function render() {
   const w = state.wx;
   if (!w) return;
-  renderAT(); renderEHF(); renderSport(); renderTWL();
+  renderAT(); renderChart(); renderUV(); renderEHF(); renderSport(); renderTWL();
 }
 function renderAT() {
   const w = state.wx, n = w.now, body = BODIES.find(b => b.id === state.body);
-  const f = feelsLike(n, body), night = n.elev <= 0 ? 'night' : '';
+  const run = RUNS.find(r => r.id === state.run) || RUNS[0];
+  const f = feelsLike(n, body), rf = runFeels(n, body, run), night = n.elev <= 0 ? 'night' : '';
   $('#atGrid').innerHTML =
-    tile('In shade', 'standing', f.shadeStand, atBand(f.shadeStand)) +
-    tile('In shade', 'walking', f.shadeWalk, atBand(f.shadeWalk)) +
-    tile('In sun', 'standing', f.sunStand, atBand(f.sunStand), night) +
-    tile('In sun', 'walking', f.sunWalk, atBand(f.sunWalk), night);
+    tile('Shade', 'standing', f.shadeStand, atBand(f.shadeStand)) +
+    tile('Sun', 'standing', f.sunStand, atBand(f.sunStand), night) +
+    tile('Shade', 'walking', f.shadeWalk, atBand(f.shadeWalk)) +
+    tile('Sun', 'walking', f.sunWalk, atBand(f.sunWalk), night) +
+    tile('Shade', 'running', rf.shade, atBand(rf.shade)) +
+    tile('Sun', 'running', rf.sun, atBand(rf.sun), night);
   $('#conds').innerHTML =
     `<span>Air <b>${f1(n.Ta)}°</b></span><span>Humidity <b>${f0(n.RH)}%</b></span>` +
     `<span>Wind <b>${f0(n.ws * 3.6)} km/h</b></span>` +
     (n.elev > 0 ? `<span>Sun <b>${f0(n.elev)}°</b> high · adds <b>+${f1(f.sunAdd)}°</b></span>` : `<span>Sun <b>below horizon</b></span>`);
-  $('#atFoot').textContent = `BOM apparent temperature (shade, walking, no radiation): ${f1(f.bom)}°. Body-type, standing and sun values are extensions: see notes.`;
+}
+
+/* ---------- hourly chart ---------- */
+const dayName = s => s ? new Date(s + 'T00:00:00Z').toLocaleDateString('en-AU', { weekday: 'short', timeZone: 'UTC' }) : '–';
+function dayDate(o) { const D = state.wx.daily; return D.date[state.wx.today + o]; }
+function renderDaySeg() {
+  const seg = $('#daySeg'), opts = [];
+  for (let o = -2; o <= 3; o++) { const d = dayDate(o); if (d && state.wx.hours.some(h => h.t.startsWith(d))) opts.push({ o, d }); }
+  seg.innerHTML = opts.map(x => `<button data-o="${x.o}" aria-pressed="${x.o === state.day}">${x.o === 0 ? 'Today' : x.o === -1 ? 'Yest.' : dayName(x.d)}</button>`).join('');
+}
+function renderChart() {
+  const w = state.wx, body = BODIES.find(b => b.id === state.body);
+  renderDaySeg();
+  const date = dayDate(state.day), H = w.hours.filter(h => h.t.startsWith(date));
+  const box = $('#chart');
+  if (!H.length) { box.innerHTML = '<p class="mut">No hourly data for this day.</p>'; $('#readout').textContent = ''; return; }
+  const rows = H.map(h => { const f = feelsLike(h, body); return { t: h.t, hr: +h.t.slice(11, 13), air: h.Ta, shade: f.shadeWalk, sun: f.sunWalk, sunUp: h.elev > 0 }; });
+  const all = rows.flatMap(r => [r.air, r.shade, r.sun]);
+  let lo = Math.floor(Math.min(...all) / 5) * 5, hi = Math.ceil(Math.max(...all) / 5) * 5;
+  if (hi - lo < 10) hi = lo + 10;
+  const W = 640, Ht = 300, L = 46, R = 10, T = 14, B = 32, pw = W - L - R, ph = Ht - T - B;
+  const X = hr => L + pw * hr / 23, Y = v => T + ph * (hi - v) / (hi - lo);
+  const path = k => rows.map((r, i) => (i ? 'L' : 'M') + X(r.hr).toFixed(1) + ' ' + Y(r[k]).toFixed(1)).join('');
+  let g = '';
+  rows.forEach(r => { if (!r.sunUp) g += `<rect x="${(X(r.hr) - pw / 46).toFixed(1)}" y="${T}" width="${(pw / 23).toFixed(1)}" height="${ph}" class="nightband"/>`; });
+  for (let v = lo; v <= hi; v += 5) g += `<line x1="${L}" x2="${W - R}" y1="${Y(v)}" y2="${Y(v)}" class="grid"/><text x="${L - 6}" y="${Y(v) + 6}" class="ax" text-anchor="end">${v}°</text>`;
+  for (let h = 0; h <= 21; h += 3) g += `<text x="${X(h)}" y="${Ht - 8}" class="ax" text-anchor="middle">${h === 0 ? '12a' : h < 12 ? h + 'a' : h === 12 ? '12p' : (h - 12) + 'p'}</text>`;
+  const nowHr = state.day === 0 && w.hour0 >= 0 ? +w.hours[w.hour0].t.slice(11, 13) + w.nowMin / 60 : null;
+  if (nowHr != null) g += `<line x1="${X(nowHr)}" x2="${X(nowHr)}" y1="${T}" y2="${T + ph}" class="nowline"/><text x="${X(nowHr) + 3}" y="${T + 16}" class="ax">now</text>`;
+  g += `<path d="${path('sun')}" class="ln s3"/><path d="${path('shade')}" class="ln s2"/><path d="${path('air')}" class="ln s1"/>`;
+  g += `<g id="hov" style="display:none"><line id="hovL" y1="${T}" y2="${T + ph}" class="hovline"/>` +
+    ['s1', 's2', 's3'].map(c => `<circle r="4.5" class="dot ${c}" id="d${c}"/>`).join('') + '</g>';
+  g += `<rect x="${L}" y="${T}" width="${pw}" height="${ph}" fill="transparent" id="hit" style="touch-action:pan-y"/>`;
+  box.innerHTML = `<svg viewBox="0 0 ${W} ${Ht}" role="img" aria-label="Hourly air and feels-like temperature for ${date}">${g}</svg>`;
+  const svg = box.querySelector('svg');
+  const show = i => {
+    const r = rows[clamp(i, 0, rows.length - 1)];
+    const hov = svg.querySelector('#hov'); hov.style.display = '';
+    svg.querySelector('#hovL').setAttribute('x1', X(r.hr)); svg.querySelector('#hovL').setAttribute('x2', X(r.hr));
+    [['s1', 'air'], ['s2', 'shade'], ['s3', 'sun']].forEach(([c, k]) => { const d = svg.querySelector('#d' + c); d.setAttribute('cx', X(r.hr)); d.setAttribute('cy', Y(r[k])); });
+    $('#readout').innerHTML = `<b>${r.t.slice(11, 16)}</b> <span class="key s1"></span>Air <b>${f1(r.air)}°</b> <span class="key s2"></span>Shade <b>${f1(r.shade)}°</b> <span class="key s3"></span>Sun <b>${r.sunUp ? f1(r.sun) + '°' : '–'}</b>`;
+  };
+  const pick = ev => { const p = svg.getBoundingClientRect(); const hr = ((ev.clientX - p.left) / p.width * W - L) / pw * 23; return rows.findIndex(r => r.hr === clamp(Math.round(hr), rows[0].hr, rows[rows.length - 1].hr)); };
+  const hit = svg.querySelector('#hit');
+  hit.addEventListener('pointermove', e => show(pick(e)));
+  hit.addEventListener('pointerdown', e => show(pick(e)));
+  const def = nowHr != null ? rows.findIndex(r => r.hr === Math.floor(nowHr)) : rows.reduce((b, r, i) => r.air > rows[b].air ? i : b, 0);
+  show(def < 0 ? 0 : def);
+  const mx = rows.reduce((a, r) => r.air > a.air ? r : a), mn = rows.reduce((a, r) => r.air < a.air ? r : a);
+  $('#chartFoot').textContent = `${state.day < 0 ? 'Past (model analysis)' : state.day === 0 ? 'Today' : 'Forecast'}: low ${f1(mn.air)}° at ${mn.t.slice(11, 16)}, high ${f1(mx.air)}° at ${mx.t.slice(11, 16)}. Feels-like lines are walking, for your body type.`;
+}
+
+/* ---------- UV ---------- */
+function renderUV() {
+  const w = state.wx, box = $('#uv');
+  const i0 = w.hour0, h0 = w.hours[i0], h1 = w.hours[i0 + 1];
+  if (!h0 || h0.uv == null) { box.innerHTML = '<p class="mut">UV data not available for this location.</p>'; return; }
+  const uvNow = h1 && h1.uv != null ? h0.uv + (h1.uv - h0.uv) * w.nowMin / 60 : h0.uv;
+  const cls = ['lv2', 'lv3', 'lv4', 'lv5', 'lv6'], b = uvBand(uvNow);
+  const today = w.daily.date[w.today], H = w.hours.filter(h => h.t.startsWith(today) && h.uv != null);
+  const prot = H.filter(h => h.uv >= 3), pk = H.reduce((a, h) => h.uv > a.uv ? h : a, H[0]);
+  const hn = h => (h % 12 || 12) + (h % 24 < 12 ? 'am' : 'pm'), hh = t => hn(+t.slice(11, 13));
+  const need = uvNow >= 3;
+  let line;
+  if (!prot.length) line = 'No sun protection needed today.';
+  else {
+    const endH = +prot[prot.length - 1].t.slice(11, 13) + 1;
+    line = `Protection needed <b>${hh(prot[0].t)}–${hn(endH)}</b> today · peak <b>${f0(pk.uv)}</b> at ${hh(pk.t)}`;
+  }
+  const tm = w.daily.uvmax && w.daily.uvmax[w.today + 1];
+  box.innerHTML = `<div class="badge ${cls[b.lvl]}"><div class="big">${f1(uvNow)}</div>` +
+    `<div class="sub"><b class="ink">${b.name}</b> now · ${need ? 'wear sunscreen, hat &amp; sunglasses' : 'sunscreen not needed right now'}</div></div>` +
+    `<p class="foot">${line}${tm != null ? ` · tomorrow max ${f0(tm)}` : ''}</p>` +
+    `<div class="uvs">` + H.filter(h => { const x = +h.t.slice(11, 13); return x >= 5 && x <= 20; }).map(h =>
+      `<div class="uvc ${cls[uvBand(h.uv).lvl]} ${h === h0 ? 'now' : ''}" title="${h.t.slice(11, 16)} UV ${f1(h.uv)}"><b>${f0(h.uv)}</b><span>${+h.t.slice(11, 13) % 3 === 0 ? hh(h.t) : ''}</span></div>`).join('') + '</div>';
 }
 
 function renderEHF() {
@@ -592,7 +761,6 @@ function renderEHF() {
     const i = ti + o, e = ehfAt(d, i, t95), cl = ehfClass(e, ehf85);
     items.push({ o, e, cl, date: D.date[i] });
   }
-  const dayName = s => s ? new Date(s + 'T00:00:00Z').toLocaleDateString('en-AU', { weekday: 'short', timeZone: 'UTC' }) : '–';
   const cur = items.find(x => x.o === 0);
   const future = items.filter(x => x.o > 0 && x.cl.lvl > 0);
   let head;
@@ -633,12 +801,42 @@ function renderTWL() {
     twlZone(cur.val, cur.limited).text + ` Wet bulb ${f1(cur.Twb)}°.`;
 }
 
+/* ---------- favourites ---------- */
+const sameLoc = (a, b) => a && b && Math.abs(a.lat - b.lat) < 0.01 && Math.abs(a.lon - b.lon) < 0.01;
+function favIndex() { return state.favs.findIndex(f => sameLoc(f, state.loc)); }
+function toggleFav() {
+  if (!state.loc) return;
+  const i = favIndex();
+  if (i >= 0) state.favs.splice(i, 1);
+  else state.favs.push({ lat: state.loc.lat, lon: state.loc.lon, name: state.loc.name });
+  store.set('favs', state.favs); renderFavs();
+}
+function renderFavs() {
+  const on = favIndex() >= 0, b = $('#btnFav');
+  b.textContent = on ? '★' : '☆'; b.setAttribute('aria-pressed', on); b.title = on ? 'Remove from favourites' : 'Add to favourites';
+  $('#favs').innerHTML = state.favs.map((f, i) =>
+    `<span class="fav ${sameLoc(f, state.loc) ? 'cur' : ''}"><button data-i="${i}">${esc(f.name.split(',')[0])}</button><button data-del="${i}" aria-label="Remove ${esc(f.name)}">×</button></span>`).join('');
+  $('#favs').hidden = !state.favs.length;
+}
+
 /* ---------- controls ---------- */
 function buildControls() {
   const bs = $('#bodySeg');
   bs.innerHTML = BODIES.map(b => `<button data-id="${b.id}" title="${b.note}" aria-pressed="${b.id === state.body}">${b.label}</button>`).join('');
   bs.onclick = e => { const b = e.target.closest('button'); if (!b) return; state.body = b.dataset.id; store.set('body', state.body);
-    bs.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x.dataset.id === state.body)); if (state.wx) renderAT(); };
+    bs.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x.dataset.id === state.body)); if (state.wx) { renderAT(); renderChart(); } };
+  const rs = $('#runSeg');
+  rs.innerHTML = RUNS.map(r => `<button data-id="${r.id}" aria-pressed="${r.id === state.run}" title="${r.kmh} km/h">${r.label} <small>${r.kmh}</small></button>`).join('');
+  rs.onclick = e => { const b = e.target.closest('button'); if (!b) return; state.run = b.dataset.id; store.set('run', state.run);
+    rs.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x.dataset.id === state.run)); if (state.wx) renderAT(); };
+  $('#daySeg').onclick = e => { const b = e.target.closest('button'); if (!b) return; state.day = +b.dataset.o; renderChart(); };
+  $('#btnFav').onclick = toggleFav;
+  $('#favs').onclick = e => {
+    const x = e.target.closest('[data-del]'), c = e.target.closest('[data-i]');
+    if (x) { state.favs.splice(+x.dataset.del, 1); store.set('favs', state.favs); renderFavs(); return; }
+    if (c) { const f = state.favs[+c.dataset.i]; state.loc = { ...f, manual: true }; store.set('loc', state.loc); refresh(); }
+  };
+  renderFavs();
   const sel = $('#sportSel');
   sel.innerHTML = SPORTS.map(s => `<option>${s.name}</option>`).join('');
   sel.value = SPORTS.some(s => s.name === state.sport) ? state.sport : SPORTS[0].name;
